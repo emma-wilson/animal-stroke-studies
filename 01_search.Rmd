@@ -1,0 +1,54 @@
+---
+title: "Systematic Search"
+author: "Emma Wilson"
+date: "29/03/2021"
+output: 
+  html_notebook:
+    theme: cosmo
+---
+# Load libraries
+
+```{r set-up}
+library(tidyverse)               # data transformation
+source("functions/searchPubMed") # automatic search of PubMed using PubMedTools
+source("functions/formatPubMed") # formats PubMed data to merge with Embase
+source("functions/formatEmbase") # formats Embase data to merge with PubMed
+```
+
+# Set search dates
+
+```{r set-date}
+searchDate <- paste0(Sys.Date()) # date current search is performed
+lastSearchDate <- "" # date of last search
+#create directory folders
+searchfolder <- paste0("search/", date)
+dir.create(searchfolder)
+```
+
+# Run systematic searches
+
+## PubMed search
+
+```{r search-pubmed}
+# Automatic PubMed search
+pubmed <- searchPubMed(searchDate, lastSearchDate)
+# Format PubMed search results
+pubmed <- formatPubMed(pubmed)
+```
+
+## Embase search
+
+```{r}
+# Read in Embase search results
+embase <- read_csv()
+# Format Embase search results
+embase <- formatEmbase(embase)
+```
+
+# Merge search results and save
+
+```{r}
+search <- rbind(pubmed, embase)
+write.csv(search, paste0(searchfolder,"_",searcDate,".csv"), row.names = F)
+```
+
