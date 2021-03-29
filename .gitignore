@@ -36,7 +36,7 @@ vignettes/*.pdf
 *.knit.md
 
 # HTML outputs created by R Markdown
-.html
+*.html
 
 # R Environment Variables
 .Renviron
