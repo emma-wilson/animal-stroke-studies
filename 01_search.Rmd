@@ -9,10 +9,17 @@ output:
 # Load libraries
 
 ```{r set-up}
-library(tidyverse)               # data transformation
-source("functions/searchPubMed") # automatic search of PubMed using PubMedTools
-source("functions/formatPubMed") # formats PubMed data to merge with Embase
-source("functions/formatEmbase") # formats Embase data to merge with PubMed
+library(readr)                   # read and write files
+library(readxl)                  # read Excel files
+library(pubmedTools)             # automatic PubMed search retrieval
+library(dplyr)                   # data transformation
+library(stringr)                 # manipulate strings
+library(data.table)              # read multiple files in loop
+library(purrr)                   # read multiple files in loop
+source("functions/searchPubMed.R") # automatic search of PubMed using PubMedTools
+source("functions/readEmbase.R")   # reads Embae files in a loop
+source("functions/formatEmbase.R") # formats Embase data to merge with PubMed
+dir.create("search-updates")     # Create directory for search update files if doesn't already exist
 ```
 
 # Set search dates
@@ -21,7 +28,7 @@ source("functions/formatEmbase") # formats Embase data to merge with PubMed
 searchDate <- paste0(Sys.Date()) # date current search is performed
 lastSearchDate <- "" # date of last search
 #create directory folders
-searchfolder <- paste0("search/", date)
+searchfolder <- paste0("search-updates/", searchDate)
 dir.create(searchfolder)
 ```
 
@@ -32,23 +39,24 @@ dir.create(searchfolder)
 ```{r search-pubmed}
 # Automatic PubMed search
 pubmed <- searchPubMed(searchDate, lastSearchDate)
-# Format PubMed search results
-pubmed <- formatPubMed(pubmed)
+# Write csv file of citations retrieved from PubMed search
+write_csv(pubmed, paste0(searchfolder, "/pubmed.csv"))
 ```
 
 ## Embase search
 
 ```{r}
-# Read in Embase search results
-embase <- read_csv()
-# Format Embase search results
-embase <- formatEmbase(embase)
+# Read in and format Embase search results
+embase <- readEmbase(searchfolder, "*.xlsx")
 ```
 
-# Merge search results and save
+# Merge and write search file
 
 ```{r}
-search <- rbind(pubmed, embase)
-write.csv(search, paste0(searchfolder,"_",searcDate,".csv"), row.names = F)
+# Remove PMID column
+embase_noPMID <- select(embase, -PMID)
+# Merge together
+search_all <- rbind(pubmed, embase_noPMID)
+# Write csv file
+write_csv(search_all, paste0(searchfolder, "/search.csv"))
 ```
-
