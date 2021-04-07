@@ -1,0 +1,12 @@
+---
+title: "Initial Searches"
+author: "Emma Wilson"
+date: "29/03/2021"
+output: 
+  html_notebook:
+    theme: cosmo
+---
+
+The first PubMed search was run on 11th December 2019. From hose search results, 4000 citations were randomly selected to be screened in SyRF based on title and abstract. These screening decisions were used to train a machine and were supplemented with data from Dr Sarah McCann's stroke database.
+
+An updated search of PubMed and a search of Embase were conducted on Aug 18th 2020. This updated search is included in the definition of "initial search" as it contained the first search of Embase.
