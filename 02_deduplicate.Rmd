@@ -1,0 +1,160 @@
+---
+title: "Deduplicate studies"
+output: html_notebook
+---
+
+# Load libraries
+
+```{r set-up}
+library(dplyr)                   # data transformation
+library(googlesheets4)
+library(readr)
+source("functions/dedup_labelled_refs.R")
+source("configure_dedup.R")
+dir.create("deduplication")
+```
+
+# Deduplicate based on PMID
+
+```{r}
+# use PMID to filter out studies found by pubmed and remve PMID column
+embase_filtered <- embase %>%
+    filter(!PMID %in% pubmed$Accession) %>%
+    select(-PMID)
+
+#merge PubMed and filtered Embase studies
+search_filtered <- rbind(pubmed, embase_filtered)
+```
+
+# Deduplicate new studies from old using unique ID
+
+```{r}
+# read in all studies retrieved previously
+full_database <- read_csv() # read in full database
+# find new unique IDs retrieved
+search_new <- search_filtered %>%
+  filter(!UniqueIdStr %in% full_database$UniqueIdStr)
+```
+
+# Deduplicate new studies
+
+# Automatic deuplication of new studies
+
+```{r}
+dedupfolder <- paste0("deduplication/", searchDate)
+dir.create(dedupfolder)
+
+dedup_data_new <- search_new %>%
+  select(Author, Title, Year, Journal, ISBN, Abstract, DOI, Number, Pages, Volume, UniqueIdStr, DB) %>%
+  mutate(RecordID = toupper(UniqueIdStr)) %>%
+  mutate(Label = toupper(DB)) %>%
+  select(-DB, -UniqueIdStr)
+
+update_new <- dedup_labelled_refs(dedup_data_new,
+                                  LabelKeep ="PUBMED")
+
+update_new_unique <- update_new$Unique
+update_new_manual <- update_new$ManualDedup 
+update_new_truepairs <- update_new$TruePairs
+update_new_removedrefs <- update_new$DuplicateRefsRemoved
+
+write.csv(update_new_unique, paste0(dedupfolder, "/update_new_unique.csv"))
+write.csv(update_new_manual, paste0(dedupfolder, "/update_new_manual.csv"))
+write.csv(update_new_truepairs, paste0(dedupfolder, "/update_new_truepairs.csv"))
+write.csv(update_new_removedrefs, paste0(dedupfolder, "/update_new_removedrefs.csv"))
+
+gs4_auth(use_oob = TRUE)
+
+# the url to dedupsheet is found in the configure file
+googlesheets4::sheet_write(update_new_manual, dedupsheet, sheet=paste0("manualdedup_new_",searchDate))
+```
+
+```{r}
+after_manual_new <- googlesheets4::read_sheet(dedupsheet, sheet=paste0("manualdedup_new_",searchDate))
+
+remove1_new <- after_manual_new$RecordID1[which(after_manual_new$id1=="remove")]
+remove2_new <- after_manual_new$RecordID2[which(after_manual_new$id2=="remove")]         
+     
+removeIDs_new <- c(as.character(remove1_new), as.character(remove2_new))                    
+removeIDs_new <- unique(removeIDs_new)
+
+update_new_unique$Year <- as.character(update_new_unique$Year)
+update_new_unique$Year <- as.numeric(update_new_unique$Year)
+update_new_unique$RecordID <- as.character(update_new_unique$RecordID)
+
+search_new_unique <- update_new_unique %>%
+  filter(!RecordID %in% removeIDs_new) %>%
+  rename(UniqueIdStr = RecordID)
+
+search_new_unique <- search_new %>%
+  mutate(UniqueIdStr = toupper(UniqueIdStr)) %>%
+  filter(UniqueIdStr %in% search_new_unique$UniqueIdStr)
+```
+
+
+```{r}
+full_unique <- read_csv()
+
+latest_unique <- latest_unique %>%
+  filter(Year == 2020) %>%
+  select(Author, Title, Year, Journal, ISBN, Abstract, DOI, Number, Pages, Volume, UniqueIdStr) %>%
+  mutate(RecordID = toupper(UniqueIdStr)) %>%
+  mutate(Label = "OLD") %>%
+  select(-UniqueIdStr)
+
+dedup_two <- search_new_unique %>%
+  select(Author, Title, Year, Journal, ISBN, Abstract, DOI, Number, Pages, Volume, UniqueIdStr, DB) %>%
+  mutate(RecordID = toupper(UniqueIdStr)) %>%
+  mutate(Label = "NEW") %>%
+  select(-DB, -UniqueIdStr)
+
+dedup_two <- rbind(latest_unique, dedup_two)
+
+update_old <- dedup_labelled_refs(dedup_two,
+                                  LabelKeep ="OLD")
+
+update_old_unique <- update_old$Unique
+update_old_manual <- update_old$ManualDedup 
+update_old_truepairs <- update_old$TruePairs
+update_old_removedrefs <- update_old$DuplicateRefsRemoved
+
+write.csv(update_old_unique, paste0(dedupfolder, "/update_old_unique.csv"))
+write.csv(update_old_manual, paste0(dedupfolder, "/update_old_manual.csv"))
+write.csv(update_old_truepairs, paste0(dedupfolder, "/update_old_truepairs.csv"))
+write.csv(update_old_removedrefs, paste0(dedupfolder, "/update_old_removedrefs.csv"))
+
+# the url to dedupsheet is found in the configure file
+googlesheets4::sheet_write(update_old_manual, dedupsheet, sheet=paste0("manualdedup_old_",searchDate))
+```
+
+```{r}
+after_manual_old <- googlesheets4::read_sheet(dedupsheet, sheet=paste0("manualdedup_old_",searchDate))
+
+remove1_old <- after_manual_old$RecordID1[which(after_manual_old$id1=="remove")]
+remove2_old <- after_manual_old$RecordID2[which(after_manual_old$id2=="remove")]         
+     
+removeIDs_old <- c(as.character(remove1_old), as.character(remove2_old))                    
+removeIDs_old <- unique(removeIDs_old)
+
+update_old_unique$Year <- as.character(update_old_unique$Year)
+update_old_unique$Year <- as.numeric(update_old_unique$Year)
+update_old_unique$RecordID <- as.character(update_old_unique$RecordID)
+
+search_old_unique <- update_old_unique %>%
+  filter(!RecordID %in% removeIDs_old) %>%
+  rename(UniqueIdStr = RecordID)
+
+search_new_unique <- search_new_unique %>%
+  mutate(UniqueIdStr = toupper(UniqueIdStr)) %>%
+  filter(UniqueIdStr %in% search_old_unique$UniqueIdStr)
+```
+
+save new unique studies
+
+```{r}
+dir.create("search-unique")
+uniquefolder <- paste0("search-unique/", searchDate)
+dir.create(uniquefolder)
+write_csv(search_new_unique, paste0(uniquefolder,"/unique-studies.csv"))
+```
+
