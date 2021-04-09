@@ -25,7 +25,7 @@ searchPubMed <- function(searchDate, lastSearchDate){
   
   # Rename and select columns. Create unique ID
   pubmed <- metaData %>%
-    mutate(DB = "pubmed",
+    mutate(DB = "PubMed",
            UniqueIdStr = paste0(DB,"-",pmid),
            Language = NA) %>%
     select(Title = title,
